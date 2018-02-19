@@ -1,23 +1,16 @@
 package org.datanucleus.test;
 
-import org.datanucleus.util.NucleusLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.function.Consumer;
-
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
+import javax.persistence.LockModeType;
 import javax.persistence.Persistence;
-import javax.persistence.Query;
 
-import mydomain.model.Person;
-
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import mydomain.model.MyEntity;
 
 public class SimpleTest
 {
@@ -26,11 +19,6 @@ public class SimpleTest
     @Before
     public void setUp() {
         emf = Persistence.createEntityManagerFactory("MyTest");
-        // create a single entity in a transaction
-        withTx(emf, em -> {
-            Person person = new Person(1, "name");
-            em.persist(person);
-        });
     }
 
     @After
@@ -39,56 +27,23 @@ public class SimpleTest
     }
 
     @Test
-    public void testNativeReadAndUpdateRSM()
+    public void testVersionLocking()
     {
-        // read the entity in using a native query and Result Set Mapping, modify its name, commit
-        withTx(emf, em -> {
-            Query q = em.createNativeQuery("select * from Person where id = 1", "RSM_TEST");
-            Person p = (Person) q.getSingleResult();
-            p.setName("RSM name");
-        });
-
-        // read the entity in again, confirm the new name
-        withTx(emf, em -> {
-            Query q = em.createNativeQuery("select * from Person where id = 1", Person.class);
-            Person p = (Person) q.getSingleResult();
-            assertThat(p.getName(), is("RSM name"));
-        });
-    }
-
-    @Test
-    public void testNativeReadAndUpdateResultClass()
-    {
-        // read the entity in using a native query and result class, modify, commit
-        withTx(emf, em -> {
-            Query q = em.createNativeQuery("select * from Person where id = 1", Person.class);
-            Person p = (Person) q.getSingleResult();
-            p.setName("result class name");
-        });
-
-        // read the entity in again, confirm the new name
-        withTx(emf, em -> {
-            Query q = em.createNativeQuery("select * from Person where id = 1", Person.class);
-            Person p = (Person) q.getSingleResult();
-            assertThat(p.getName(), is("result class name"));
-        });
-    }
-
-    private static void withTx(EntityManagerFactory emf, Consumer<EntityManager> c) {
         EntityManager em = emf.createEntityManager();
         EntityTransaction tx = em.getTransaction();
-        try {
-            tx.begin();
-            c.accept(em);
-            tx.commit();
-        } catch (Throwable thr) {
-            NucleusLogger.GENERAL.error(">> Exception in test", thr);
-            fail("Failed test : " + thr.getMessage());
-        } finally {
-            if (tx.isActive()) {
-                tx.rollback();
-            }
-            em.close();
-        }
+        tx.begin();
+        MyEntity entity1 = MyEntity.create("1");
+        MyEntity entity2 = MyEntity.create("2");
+        em.persist(entity1);
+        em.persist(entity2);
+        tx.commit();
+
+        tx = em.getTransaction();
+        tx.begin();
+        MyEntity ent1 = em.find(MyEntity.class, "1");
+        MyEntity ent2 = em.find(MyEntity.class, "2");
+        em.lock(ent1, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
+        em.lock(ent2, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
+        tx.commit();
     }
 }
