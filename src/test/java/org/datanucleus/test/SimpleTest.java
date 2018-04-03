@@ -41,7 +41,18 @@ public class SimpleTest
         EntityTransaction tx = em.getTransaction();
         tx.begin();
         // native query with table alias
-        Query nativeQuery = em.createNativeQuery("select e.id, e.value from entity e where e.id = ? order by e.id", MyEntity.class);
+        Query nativeQuery = em.createNativeQuery("select e.id, e.value from entity e where e.id = ?", MyEntity.class);
+        nativeQuery.setParameter(1, 1);
+        MyEntity entity = (MyEntity) nativeQuery.getResultList().get(0);
+        tx.commit();
+    }
+
+    @Test
+    public void testNativeQueryWildcardPK() {
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        // native query with table alias
+        Query nativeQuery = em.createNativeQuery("select * from entity  where id = ?", MyEntity.class);
         nativeQuery.setParameter(1, 1);
         MyEntity entity = (MyEntity) nativeQuery.getResultList().get(0);
         tx.commit();
@@ -52,7 +63,7 @@ public class SimpleTest
         EntityTransaction tx = em.getTransaction();
         tx.begin();
         // native query without table alias
-        Query nativeQuery = em.createNativeQuery("select id, value from entity  where id = ? order by id", MyEntity.class);
+        Query nativeQuery = em.createNativeQuery("select id, value from entity  where id = ?", MyEntity.class);
         nativeQuery.setParameter(1, 1);
         MyEntity entity = (MyEntity) nativeQuery.getResultList().get(0);
         tx.commit();
