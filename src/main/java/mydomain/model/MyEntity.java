@@ -2,22 +2,25 @@ package mydomain.model;
 
 import javax.persistence.*;
 
+
 @javax.persistence.Entity(name = "entity")
 @Table(name = "entity")
 public class MyEntity {
 
     @Id
-    @Column(unique = true, updatable = false)
-    public String id;
+    @Column
+    public Integer id;
 
-    @Version
-    @Column(name = "_version")
-    public Long _version;
+    @Column
+    public String value;
 
-    public static MyEntity create(String id) {
+    public void setValue(String value) {
+        this.value = value;
+    }
+
+    public static MyEntity create(Integer id) {
         MyEntity myEntity = new MyEntity();
         myEntity.id = id;
         return myEntity;
-
     }
 }

@@ -7,18 +7,28 @@ import org.junit.Test;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
-import javax.persistence.LockModeType;
 import javax.persistence.Persistence;
+import javax.persistence.Query;
 
 import mydomain.model.MyEntity;
 
 public class SimpleTest
 {
     private EntityManagerFactory emf;
+    EntityManager em;
 
     @Before
     public void setUp() {
         emf = Persistence.createEntityManagerFactory("MyTest");
+        em = emf.createEntityManager();
+
+        // write a single entity
+        EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        MyEntity entity = MyEntity.create(1);
+        entity.setValue("foo");
+        em.persist(entity);
+        tx.commit();
     }
 
     @After
@@ -27,23 +37,24 @@ public class SimpleTest
     }
 
     @Test
-    public void testVersionLocking()
-    {
-        EntityManager em = emf.createEntityManager();
+    public void testNativeQueryAliasedPK() {
         EntityTransaction tx = em.getTransaction();
         tx.begin();
-        MyEntity entity1 = MyEntity.create("1");
-        MyEntity entity2 = MyEntity.create("2");
-        em.persist(entity1);
-        em.persist(entity2);
+        // native query with table alias
+        Query nativeQuery = em.createNativeQuery("select e.id, e.value from entity e where e.id = ? order by e.id", MyEntity.class);
+        nativeQuery.setParameter(1, 1);
+        MyEntity entity = (MyEntity) nativeQuery.getResultList().get(0);
         tx.commit();
+    }
 
-        tx = em.getTransaction();
+    @Test
+    public void testNativeQuery() {
+        EntityTransaction tx = em.getTransaction();
         tx.begin();
-        MyEntity ent1 = em.find(MyEntity.class, "1");
-        MyEntity ent2 = em.find(MyEntity.class, "2");
-        em.lock(ent1, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
-        em.lock(ent2, LockModeType.OPTIMISTIC_FORCE_INCREMENT);
+        // native query without table alias
+        Query nativeQuery = em.createNativeQuery("select id, value from entity  where id = ? order by id", MyEntity.class);
+        nativeQuery.setParameter(1, 1);
+        MyEntity entity = (MyEntity) nativeQuery.getResultList().get(0);
         tx.commit();
     }
 }
